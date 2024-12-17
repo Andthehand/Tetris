@@ -46,7 +46,7 @@ void __isr dma_complete_handler() {
         dma_hw->ints0 = (1u << DMA);
         // when the dma is complete we start the reset delay timer
         if (reset_delay_alarm_id) cancel_alarm(reset_delay_alarm_id);
-        reset_delay_alarm_id = add_alarm_in_us(10, reset_delay_complete, NULL, true);
+        reset_delay_alarm_id = add_alarm_in_ms(10, reset_delay_complete, NULL, true);
     }
 }
 
@@ -105,9 +105,8 @@ int main() {
         for (int i = 0; i < 1000; ++i) {
             puts("test");
             pattern_snakes(NUM_PIXELS, t);
-            sem_acquire_blocking(&reset_delay_complete_sem);
             dma_channel_set_read_addr(DMA, buffer, true);
-            sleep_ms(10);
+            sem_acquire_blocking(&reset_delay_complete_sem);
             t += 1;
         }
     }

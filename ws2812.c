@@ -16,7 +16,7 @@
 
 #define NUM_PIXELS 200
 
-#define WS2812_PIN 1
+#define WS2812_PIN 0
 #define BRIGHTNESS 0.01
 
 // Packed in rgb of 8 bits each
@@ -80,6 +80,12 @@ void pattern_snakes(uint len, uint t) {
     }
 }
 
+void solid(uint8_t r, uint8_t g, uint8_t b) {
+    for (uint i = 0; i < NUM_PIXELS; ++i) {
+        put_pixel(i, r, g, b);
+    }
+}
+
 int main() {
     //set_sys_clock_48();
     stdio_init_all();
@@ -104,9 +110,10 @@ int main() {
         int t = 0;
         for (int i = 0; i < 1000; ++i) {
             puts("test");
-            pattern_snakes(NUM_PIXELS, t);
-            dma_channel_set_read_addr(DMA, buffer, true);
-            sem_acquire_blocking(&reset_delay_complete_sem);
+            // pattern_snakes(NUM_PIXELS, t);
+            solid(0xff, 0xff, 0xff);
+            dma_channel_set_read_addr(DMA, buffer, true); // Reset the address because the DMA keeps counting up from the last address
+            sem_acquire_blocking(&reset_delay_complete_sem); // I could just check to see if the dma is busy but I think this is more power efficient
             t += 1;
         }
     }

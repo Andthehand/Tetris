@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
+
+#include "hardware/adc.h"
 
 #include "graphics.h"
 #include "game.h"
@@ -14,6 +17,13 @@
 #define TETRIS_LOOPS_TILL_FALL                                               15
 #define TETRIS_FILL_DELAY                                                    50
 #define TETRIS_LOOP_DELAY                                                    16
+
+#define ADC_GPIO                                                             26
+#define ADC_CHANNEL                                                           0
+#define ADC_RESOLUTION                                                   (4096)
+
+#define TOP_BUTTON                                                            3
+#define BOTTOM_BUTTON                                                         2
 
 //-----------------------------------------------------------------------------
 // Define a structure to hold different data types used by the program
@@ -51,6 +61,7 @@ bool can_move(int8_t x_step, int8_t y_step);
 bool move(int8_t x_step, int8_t y_step);
 void render_game_over();
 void render_screen();
+uint8_t get_adc_x_value();
 
 //-----------------------------------------------------------------------------
 // Define global variables and structures here.
@@ -93,6 +104,18 @@ bool game_over = false;
 //-----------------------------------------------------------------------------
 void init_game(void)
 {
+  adc_init();
+  adc_gpio_init(ADC_GPIO);
+  adc_select_input(ADC_CHANNEL);
+
+  gpio_init(TOP_BUTTON);
+  gpio_set_dir(TOP_BUTTON, GPIO_IN);
+  gpio_pull_up(TOP_BUTTON);
+
+  gpio_init(BOTTOM_BUTTON);
+  gpio_set_dir(BOTTOM_BUTTON, GPIO_IN);
+  gpio_pull_up(BOTTOM_BUTTON);
+
   current_block = SHAPES[rand() % (sizeof(SHAPES) / sizeof(SHAPES[0]))];
   selected_block_pos.x = (TETRIS_WIDTH - current_block.size) / 2;
   selected_block_pos.y = 0;
@@ -155,32 +178,28 @@ void game_loop(void)
 // 
 //-----------------------------------------------------------------------------
 void input_handler() {
-  char input = stdio_getchar_timeout_us(0);
+  static bool top_button_pressed = false;
+  if(!gpio_get(TOP_BUTTON) && !top_button_pressed) {
+    top_button_pressed = true;
 
-  switch(input) {
-    case 'a':
-      if (can_move(1, 0)) {
-        selected_block_pos.x++;
-      }
-      break;
-    case 's':
-      if (can_move(0, 1)) {
-        selected_block_pos.y++;
-      }
-      break;
-    case 'd':
-      if (can_move(-1, 0)) {
-        selected_block_pos.x--;
-      }
-      break;
-    case ' ':
-      Shape original_shape = current_block;
-      current_block = rotate_shape();
+    Shape original_shape = current_block;
+    current_block = rotate_shape();
 
-      if (!can_move(0, 0)) {
-        current_block = original_shape;
-      }
-      break;
+    if (!can_move(0, 0)) {
+      current_block = original_shape;
+    }
+  } else if(gpio_get(TOP_BUTTON)) {
+    top_button_pressed = false;
+  }
+
+  if(!gpio_get(BOTTOM_BUTTON)) {
+    move(0, 1);
+  }
+
+  uint16_t desired_x_position = get_adc_x_value();
+
+  if(can_move(desired_x_position - selected_block_pos.x, 0)) {
+    selected_block_pos.x = desired_x_position;
   }
 }
 
@@ -277,7 +296,7 @@ void place_shape() {
   clear_rows();
 
   current_block = SHAPES[rand() % (sizeof(SHAPES) / sizeof(SHAPES[0]))];
-  selected_block_pos.x = (TETRIS_WIDTH - current_block.size) / 2;
+  selected_block_pos.x = get_adc_x_value();
   selected_block_pos.y = 0;
 
   if (!can_move(0, 0)) {
@@ -413,4 +432,8 @@ void render_screen()
   }
 
   write_buffer();
+}
+
+uint8_t get_adc_x_value() {
+  return nearbyintf(((float)adc_read() /  (float)ADC_RESOLUTION) * (float)TETRIS_WIDTH);
 }

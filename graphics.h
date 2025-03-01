@@ -4,7 +4,7 @@
 
 #define WS2812_PIN 1
 #define NUM_PIXELS 200
-#define BRIGHTNESS 0.03
+#define BRIGHTNESS 0.05
 
 void init_graphics();
 void release_graphics();
